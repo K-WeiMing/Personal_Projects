@@ -1,63 +1,35 @@
+# fastapi
 from fastapi import FastAPI
 from fastapi import UploadFile, File
-from pydantic import BaseModel
+
+# image processing / loading
+from PIL import Image
+from io import BytesIO
+
+# uvicorn
 import uvicorn
 
+# torch
 import torch
 import torchvision
 from torchvision import transforms
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
-
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-
-import numpy as np
-
-app = FastAPI()
+# typehinting
+from typing import List, Dict
 
 
-def transform_image(image_bytes):
+# initialize application
+app = FastAPI(debug=True)
+
+
+def transform_image(image_bytes: Image.Image):
     transform_img = transforms.Compose([transforms.ToTensor()])
+    img_tensor = transform_img(image_bytes)
+    return img_tensor
 
 
-def plot_image(img_tensor, annotation):
-    fig, ax = plt.subplots(1)
-    img = img_tensor.cpu().data
-
-    # Display the image
-    ax.imshow(img.permute(1, 2, 0))
-
-    for index, box in enumerate(annotation["boxes"]):
-        xmin, ymin, xmax, ymax = box
-        xmin = xmin.detach().numpy()
-        ymin = ymin.detach().numpy()
-        xmax = xmax.detach().numpy()
-        ymax = ymax.detach().numpy()
-
-        if annotation["labels"][index] == 1:
-            color = "g"
-        if annotation["labels"][index] == 2:
-            color = "r"
-
-        # Create a Rectangle patch
-        if annotation["scores"][index].detach().numpy() > 0.5:
-            rect = patches.Rectangle(
-                (xmin, ymin),
-                (xmax - xmin),
-                (ymax - ymin),
-                linewidth=2.5,
-                edgecolor=color,
-                facecolor="none",
-            )
-
-            # Add the patch to the Axes
-            ax.add_patch(rect)
-    ax.axis(False)
-    plt.show()
-
-
-def load_model(model_weights_path):
+def load_model(model_weights_path: str):
     # Load an instance segmentation model pre-trained on COCO
     model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=False)
 
@@ -72,7 +44,71 @@ def load_model(model_weights_path):
     return model
 
 
-MODEL = load_model("../model/mask_detection_fasterrcnn.pt")
+def read_imagefile(file: bytes) -> Image.Image:
+    image = Image.open(BytesIO(file))
+    return image
+
+
+def process_prediction(pred: Dict[str, List[torch.Tensor]]) -> dict:
+    """
+    Processed the predicted output from the model
+
+    Args:
+        pred (Dict[str, List[torch.Tensor]]):
+            Comes in the format of:
+                {"boxes": [[...], [...], ...],
+                "labels": [...],
+                "scores": [...],
+                }
+
+    Returns:
+        dict: {"boxes": ..., "labels": ..., "scores": ...} for scores > threshold
+    """
+    # Comes in the format of:
+    # {"boxes": [[...], [...], ...],
+    #  "labels": [...],
+    #  "scores": [...],
+    # }
+    boxes, labels, scores = [], [], []
+
+    for index, score in enumerate(pred["scores"]):
+        score_np = float(score.detach().numpy())
+        if score_np > 0.5:
+            scores.append(score_np)
+            labels.append(process_labels(pred["labels"][index].detach().numpy()))
+
+            # print(pred["boxes"][index])
+            xmin, ymin, xmax, ymax = pred["boxes"][index]
+            xmin = float(xmin.detach().numpy())
+            ymin = float(ymin.detach().numpy())
+            xmax = float(xmax.detach().numpy())
+            ymax = float(ymax.detach().numpy())
+
+            boxes.append([xmin, ymin, xmax, ymax])
+
+    print(boxes, labels, scores)
+    return {"boxes": boxes, "labels": labels, "scores": scores}
+
+
+def process_labels(label: int) -> str:
+    """
+    Process labels and returns the classification
+
+    Args:
+        label (int): prediction from model
+
+    Returns:
+        str: classification of tagged label
+    """
+
+    if label == 1:
+        return "with_mask"
+    if label == 2:
+        return "mask_weared_incorrect"
+
+
+MODEL = load_model("model/mask_detection_fasterrcnn.pt")
+MODEL.eval()
 
 
 @app.get("/")
@@ -81,15 +117,21 @@ async def index():
 
 
 @app.post("/predict/image")
-async def predict(file: UploadFile = File()):
-    extension = file.filename.endswith(("jpg", "png"))
+async def predict(file: UploadFile = File(...)):
+    img = await file.read()
+    img = Image.open(BytesIO(img)).convert("RGB")
+    img = transform_image(img)
 
-    if not extension:
-        return "Image must be jpg or png format"
-    img = read_imagefile(await file.read())
-    prediction = predict(img)
+    prediction = MODEL([img])
 
-    return prediction
+    boxes = prediction[0]["boxes"]
+
+    processed_pred = process_prediction(prediction[0])
+
+    return processed_pred
+
+    return {"boxes": boxes}
+    # return {"prediction": str(type(prediction[0]["boxes"]))}
 
 
 if __name__ == "__main__":

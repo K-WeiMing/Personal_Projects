@@ -1,8 +1,4 @@
-# Dataset Source
-
-https://www.kaggle.com/datasets/andrewmvd/face-mask-detection
-
-# Aims of this mini-project:
+## Aims of this mini-project:
 
 1. To be able to apply transfer learning using Computer Vision on a publicly available dataset from Kaggle.
 
@@ -13,3 +9,13 @@ https://www.kaggle.com/datasets/andrewmvd/face-mask-detection
 2. To be able to deploy the trained model using Docker/FastAPI
    - Aim to be familiar with using Docker and FastAPI
    - Deployment using both these tools for inference
+
+## Running the application:
+
+In your terminal, navigate to the folder `/app` and run: `uvicorn main:app` to launch the FastAPI endpoint.
+
+Call the endpoint using the provided scripts (`send_img.py`) or through Postman.
+
+## Dataset Source
+
+https://www.kaggle.com/datasets/andrewmvd/face-mask-detection

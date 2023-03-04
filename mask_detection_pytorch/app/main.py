@@ -17,7 +17,7 @@ from torchvision import transforms
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
 # typehinting
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
 # initialize application
@@ -86,7 +86,7 @@ def process_prediction(pred: Dict[str, List[torch.Tensor]]) -> dict:
     return {"boxes": boxes, "labels": labels, "scores": scores}
 
 
-def process_labels(label: int) -> str:
+def process_labels(label: int) -> Optional[str]:
     """
     Process labels and returns the classification
 
@@ -101,6 +101,7 @@ def process_labels(label: int) -> str:
         return "with_mask"
     if label == 2:
         return "mask_weared_incorrect"
+    return ""
 
 
 # Initialize model on launch
@@ -110,7 +111,6 @@ try:
 except:
     # Executed when running locally
     MODEL = load_model("model/mask_detection_fasterrcnn.pt")
-MODEL.eval()
 
 
 # Validate outputs

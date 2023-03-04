@@ -8,11 +8,23 @@
 
 2. To be able to deploy the trained model using Docker/FastAPI
    - Aim to be familiar with using Docker and FastAPI
-   - Deployment using both these tools for inference
+   - Deployment using both these tools for inference locally or through Docker
 
 ## Running the application:
 
+### Locally
+
 In your terminal, navigate to the folder `/app` and run: `uvicorn main:app` to launch the FastAPI endpoint.
+
+Call the endpoint using the provided scripts (`send_img.py`) or through Postman.
+
+### Docker
+
+```bash
+docker build -t <image_name> .
+
+docker run -d -p 8080:80 --name <container_name> <image_name>
+```
 
 Call the endpoint using the provided scripts (`send_img.py`) or through Postman.
 

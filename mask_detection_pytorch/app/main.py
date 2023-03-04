@@ -64,11 +64,7 @@ def process_prediction(pred: Dict[str, List[torch.Tensor]]) -> dict:
     Returns:
         dict: {"boxes": ..., "labels": ..., "scores": ...} for scores > threshold
     """
-    # Comes in the format of:
-    # {"boxes": [[...], [...], ...],
-    #  "labels": [...],
-    #  "scores": [...],
-    # }
+    
     boxes, labels, scores = [], [], []
 
     for index, score in enumerate(pred["scores"]):
@@ -77,7 +73,6 @@ def process_prediction(pred: Dict[str, List[torch.Tensor]]) -> dict:
             scores.append(score_np)
             labels.append(process_labels(pred["labels"][index].detach().numpy()))
 
-            # print(pred["boxes"][index])
             xmin, ymin, xmax, ymax = pred["boxes"][index]
             xmin = float(xmin.detach().numpy())
             ymin = float(ymin.detach().numpy())
@@ -124,15 +119,10 @@ async def predict(file: UploadFile = File(...)):
 
     prediction = MODEL([img])
 
-    boxes = prediction[0]["boxes"]
-
+    # Process a single image output from MODEL
     processed_pred = process_prediction(prediction[0])
 
     return processed_pred
-
-    return {"boxes": boxes}
-    # return {"prediction": str(type(prediction[0]["boxes"]))}
-
 
 if __name__ == "__main__":
     uvicorn.run(app)

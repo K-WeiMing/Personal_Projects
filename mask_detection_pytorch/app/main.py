@@ -1,6 +1,7 @@
 # fastapi
 from fastapi import FastAPI
 from fastapi import UploadFile, File
+from pydantic import BaseModel
 
 # image processing / loading
 from PIL import Image
@@ -64,7 +65,7 @@ def process_prediction(pred: Dict[str, List[torch.Tensor]]) -> dict:
     Returns:
         dict: {"boxes": ..., "labels": ..., "scores": ...} for scores > threshold
     """
-    
+
     boxes, labels, scores = [], [], []
 
     for index, score in enumerate(pred["scores"]):
@@ -102,8 +103,16 @@ def process_labels(label: int) -> str:
         return "mask_weared_incorrect"
 
 
+# Initialize model on launch
 MODEL = load_model("model/mask_detection_fasterrcnn.pt")
 MODEL.eval()
+
+
+# Validate outputs
+class Prediction(BaseModel):
+    boxes: List[List[float]]
+    labels: List[str]
+    scores: List[float]
 
 
 @app.get("/")
@@ -111,7 +120,7 @@ async def index():
     return {"Message": "This is index"}
 
 
-@app.post("/predict/image")
+@app.post("/predict/image", response_model=Prediction)
 async def predict(file: UploadFile = File(...)):
     img = await file.read()
     img = Image.open(BytesIO(img)).convert("RGB")
@@ -123,6 +132,7 @@ async def predict(file: UploadFile = File(...)):
     processed_pred = process_prediction(prediction[0])
 
     return processed_pred
+
 
 if __name__ == "__main__":
     uvicorn.run(app)

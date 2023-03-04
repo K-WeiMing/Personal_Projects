@@ -104,7 +104,12 @@ def process_labels(label: int) -> str:
 
 
 # Initialize model on launch
-MODEL = load_model("model/mask_detection_fasterrcnn.pt")
+try:
+    # Executed when running Docker
+    MODEL = load_model("app/app/model/mask_detection_fasterrcnn.pt")
+except:
+    # Executed when running locally
+    MODEL = load_model("model/mask_detection_fasterrcnn.pt")
 MODEL.eval()
 
 

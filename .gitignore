@@ -138,4 +138,4 @@ data/
 .DS_Store
 
 # Secrets
-secrets/
+secrets.py
